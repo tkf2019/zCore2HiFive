@@ -1,15 +1,4 @@
-# zCore2HiFive
-## Stage 1：前期调研
-
-- 理解zCore核心代码的运行机制，完成相关环境的配置
-- 阅读HiFive相关文档，对移植进行初步构思
-- 查找与移植内核有关的资料，参考uCore等的移植经验
-
-#### [HiFive硬件文档](https://sifive.cdn.prismic.io/sifive/de1491e5-077c-461d-9605-e8a0ce57337d_fu740-c000-manual-v1p3.pdf)
-
-#### [HiFive软件文档](https://sifive.cdn.prismic.io/sifive/05d149d5-967c-4ce3-a7b9-292e747e6582_hifive-unmatched-sw-reference-manual-v1p0.pdf)
-
-### 10.16~10.23
+## Stage-1：前期调研 10.16~10.23
 
 #### 1.[TOCK](https://github.com/tock/tock)
 
@@ -38,3 +27,46 @@
 #### 3.zCore
 
 - [zCore Tutorial](https://rcore-os.github.io/zCore-Tutorial/)
+
+## Stage-2：初步移植 10.23~10.30
+
+#### 1. boot常用资料
+
+##### 1.1 U-Boot
+
+- **loadb**：通过串口下载二进制文件
+- **printenv**：打印环境变量，包括启动设备和起始地址等
+- **setenv**：设置环境变量，例如boot之后运行的脚本选项：
+  - **baudrate**：串口波特率，默认为115200
+  - **boot_targets**：列表包含nvme0，usb0，mmc0等，其中nvme0为SSD卡，我们拿到的主机上已装好了ubuntu系统；usb0为外接USB设备，mmc0即为SD卡，将该选项改为mmc0即可；
+  - 此外还包含一些网络相关的配置，可以从远程加载系统
+- **fdt print /cpus；fdt list /cpus**：查看设备信息，如图；可以看到cpu相关信息，大核和小核的架构不同，小核不支持页表，不支持浮点运算，且没有**d-cache**
+
+##### 1.2 SD Card 默认分区简介 
+
+- U-Boot SPL
+- U-Boot ITB（DTB with U-Boot overlay，OpenSBI generic FW_DYNAMIC，U-Boot proper）
+
+- FAT16分区，命名为**boot**，包含设置信息(EXTLINUX configuration)，内核镜像以及设备树信息(device tree blob)
+- EXT4分区，命名为**root**，包含由**FUSDK**构建的文件系统
+
+#### 2. uCore-SMP移植
+
+- 重现陶天骅学长的工作，进一步了解环境配置和编译流程
+
+#### 3. zCore移植
+
+- 参考uCore-SMP的移植流程，对zCore进行编译和配置，执行以下命令构建镜像：
+
+  ```makefile
+  gzip -9 -cvf $(build_path)/zcore.bin > $(build_path)/zcore.bin.gz
+
+  mkimage -A riscv -O linux -C gzip -T kernel -a 80200000 -e 80200000 -n "zCore-fu740" -d $(build_path)/zcore.bin.gz $(build_path)/zcore-fu740
+  ```
+
+- 修改页表相关配置，物理地址设置为从0x80000000开始
+
+- 查看A和D的设置情况，发现已经默认设置为1，不用再修改
+![](img/4.png)
+
+#### 4. [参考资料](doc/)
